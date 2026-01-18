@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShadowGen - Realistic Shadow Compositor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Space Grotesk', sans-serif; }
+    code, .mono { font-family: 'JetBrains Mono', monospace; }
+    
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+    }
+    input[type="range"]::-webkit-slider-track {
+      height: 4px;
+      background: #3f3f46;
+      border-radius: 2px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #f59e0b;
+      border-radius: 50%;
+      margin-top: -5px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      background: #fbbf24;
+    }
+    
+    .upload-zone {
+      background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(245, 158, 11, 0.03) 10px,
+        rgba(245, 158, 11, 0.03) 20px
+      );
+    }
+    
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 1; }
+      100% { transform: scale(1.3); opacity: 0; }
+    }
+    
+    .light-indicator::before {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      background: #f59e0b;
+      animation: pulse-ring 1.5s infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100">
+  
+  <!-- Header -->
+  <header class="border-b border-zinc-800 px-6 py-4">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+        <svg class="w-6 h-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight">SHADOW<span class="text-amber-500">GEN</span></h1>
+        <p class="text-xs text-zinc-500 tracking-widest uppercase mono">Realistic Shadow Compositor</p>
+      </div>
+      <div class="flex-1"></div>
+      <a href="https://github.com/amcnyusa/Shadow-Files" target="_blank" class="text-zinc-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <div class="flex h-[calc(100vh-73px)]">
+    
+    <!-- Left Panel - Controls -->
+    <aside class="w-80 border-r border-zinc-800 overflow-y-auto flex-shrink-0">
+      
+      <!-- Image Uploads -->
+      <section class="p-4 border-b border-zinc-800">
+        <h2 class="text-xs font-bold tracking-widest text-zinc-500 uppercase mb-4">Input Images</h2>
+        
+        <div class="space-y-3">
+          <!-- Foreground Upload -->
+          <div class="upload-zone relative group cursor-pointer rounded-lg border-2 border-dashed border-zinc-700 hover:border-amber-500/50 transition-all overflow-hidden" onclick="document.getElementById('fg-input').click()">
+            <input type="file" id="fg-input" accept="image/*" class="hidden" onchange="handleUpload('foreground', this)">
+            <div id="fg-preview" class="hidden relative h-20">
+              <img id="fg-img" src="" alt="Foreground" class="w-full h-full object-cover">
+              <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <span class="text-xs text-white">Click to replace</span>
+              </div>
+            </div>
+            <div id="fg-placeholder" class="flex items-center gap-3 p-3">
+              <span class="text-2xl">🧍</span>
+              <div>
+                <p class="text-sm font-medium">Foreground</p>
+                <p class="text-xs text-zinc-500">Subject to cut out</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Background Upload -->
+          <div class="upload-zone relative group cursor-pointer rounded-lg border-2 border-dashed border-zinc-700 hover:border-amber-500/50 transition-all overflow-hidden" onclick="document.getElementById('bg-input').click()">
+            <input type="file" id="bg-input" accept="image/*" class="hidden" onchange="handleUpload('background', this)">
+            <div id="bg-preview" class="hidden relative h-20">
+              <img id="bg-img" src="" alt="Background" class="w-full h-full object-cover">
+              <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <span class="text-xs text-white">Click to replace</span>
+              </div>
+            </div>
+            <div id="bg-placeholder" class="flex items-center gap-3 p-3">
+              <span class="text-2xl">🏫</span>
+              <div>
+                <p class="text-sm font-medium">Background</p>
+                <p class="text-xs text-zinc-500">Scene to composite onto</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Depth Map Upload -->
+          <div class="upload-zone relative group cursor-pointer rounded-lg border-2 border-dashed border-zinc-700 hover:border-amber-500/50 transition-all overflow-hidden opacity-60" onclick="document.getElementById('depth-input').click()">
+            <input type="file" id="depth-input" accept="image/*" class="hidden" onchange="handleUpload('depth', this)">
+            <div id="depth-preview" class="hidden relative h-20">
+              <img id="depth-img" src="" alt="Depth" class="w-full h-full object-cover">
+              <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <span class="text-xs text-white">Click to replace</span>
+              </div>
+            </div>
+            <div id="depth-placeholder" class="flex items-center gap-3 p-3">
+              <span class="text-2xl">🌫️</span>
+              <div>
+                <p class="text-sm font-medium">Depth Map</p>
+                <p class="text-xs text-zinc-500">⭐ Bonus - Optional</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Light Controls -->
+      <section class="p-4 border-b border-zinc-800">
+        <h2 class="text-xs font-bold tracking-widest text-zinc-500 uppercase mb-4">💡 Light Direction</h2>
+        
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="text-xs text-zinc-400">Angle</span>
+              <span class="text-xs mono text-amber-500" id="angle-value">135°</span>
+            </div>
+            <input type="range" id="angle" min="0" max="360" value="135" class="w-full" oninput="updateSetting('angle', this.value)">
+          </div>
+          
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="text-xs text-zinc-400">Elevation</span>
+              <span class="text-xs mono text-amber-500" id="elevation-value">45°</span>
+            </div>
+            <input type="range" id="elevation" min="0" max="90" value="45" class="w-full" oninput="updateSetting('elevation', this.value)">
+          </div>
+          
+          <!-- Visual Light Indicator -->
+          <div class="flex justify-center py-2">
+            <div class="relative w-24 h-24 rounded-full border-2 border-zinc-700 bg-zinc-900">
+              <div id="light-dot" class="light-indicator absolute w-3 h-3 bg-amber-500 rounded-full shadow-lg shadow-amber-500/50" style="left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-135deg) translateX(36px);"></div>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="w-4 h-4 rounded-full bg-zinc-600"></div>
+              </div>
+              <span class="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-zinc-600">0°</span>
+              <span class="absolute top-1/2 -right-5 -translate-y-1/2 text-[10px] text-zinc-600">90°</span>
+              <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-zinc-600">180°</span>
+              <span class="absolute top-1/2 -left-7 -translate-y-1/2 text-[10px] text-zinc-600">270°</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Shadow Controls -->
+      <section class="p-4 border-b border-zinc-800">
+        <h2 class="text-xs font-bold tracking-widest text-zinc-500 uppercase mb-4">🖤 Shadow Settings</h2>
+        
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="text-xs text-zinc-400">Length</span>
+              <span class="text-xs mono text-amber-500" id="length-value">150px</span>
+            </div>
+            <input type="range" id="length" min="10" max="300" value="150" class="w-full" oninput="updateSetting('length', this.value)">
+          </div>
+          
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="text-xs text-zinc-400">Contact Darkness</span>
+              <span class="text-xs mono text-amber-500" id="darkness-value">85%</span>
+            </div>
+            <input type="range" id="darkness" min="0" max="100" value="85" class="w-full" oninput="updateSetting('darkness', this.value)">
+          </div>
+          
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="text-xs text-zinc-400">Softness</span>
+              <span class="text-xs mono text-amber-500" id="softness-value">70%</span>
+            </div>
+            <input type="range" id="softness" min="0" max="100" value="70" class="w-full" oninput="updateSetting('softness', this.value)">
+          </div>
+        </div>
+      </section>
+
+      <!-- Position Controls -->
+      <section class="p-4">
+        <h2 class="text-xs font-bold tracking-widest text-zinc-500 uppercase mb-4">📍 Position & Scale</h2>
+        
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="text-xs text-zinc-400">Scale</span>
+              <span class="text-xs mono text-amber-500" id="scale-value">60%</span>
+            </div>
+            <input type="range" id="scale" min="10" max="150" value="60" class="w-full" oninput="updateSetting('scale', this.value)">
+          </div>
+          
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="text-xs text-zinc-400">X Position</span>
+              <span class="text-xs mono text-amber-500" id="posX-value">50%</span>
+            </div>
+            <input type="range" id="posX" min="0" max="100" value="50" class="w-full" oninput="updateSetting('posX', this.value)">
+          </div>
+          
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="text-xs text-zinc-400">Y Position</span>
+              <span class="text-xs mono text-amber-500" id="posY-value">70%</span>
+            </div>
+            <input type="range" id="posY" min="0" max="100" value="70" class="w-full" oninput="updateSetting('posY', this.value)">
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Main Canvas Area -->
+    <main class="flex-1 flex flex-col min-w-0">
+      
+      <!-- Tabs -->
+      <div class="flex items-center gap-1 p-2 border-b border-zinc-800 bg-zinc-900/50">
+        <button onclick="setTab('composite')" id="tab-composite" class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500/20 text-amber-500 transition-all">
+          🖼️ Composite
+        </button>
+        <button onclick="setTab('shadow')" id="tab-shadow" class="px-4 py-2 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-all">
+          🖤 Shadow
+        </button>
+        <button onclick="setTab('mask')" id="tab-mask" class="px-4 py-2 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-all">
+          ✂️ Mask
+        </button>
+        
+        <div class="flex-1"></div>
+        
+        <button onclick="downloadCurrent()" class="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 text-black hover:bg-amber-400 transition-colors">
+          ⬇️ Download
+        </button>
+      </div>
+
+      <!-- Canvas Display -->
+      <div class="flex-1 p-6 overflow-auto bg-[radial-gradient(circle_at_center,#18181b,#09090b)]">
+        <div class="flex items-center justify-center min-h-full">
+          
+          <!-- Empty State -->
+          <div id="empty-state" class="text-center text-zinc-500">
+            <div class="text-6xl mb-4">🌅</div>
+            <p class="text-lg">Upload foreground and background images to begin</p>
+            <p class="text-sm mt-2 text-zinc-600">Supports JPG, PNG, WebP</p>
+          </div>
+          
+          <!-- Canvas Container -->
+          <div id="canvas-container" class="hidden relative">
+            <canvas id="main-canvas" class="max-w-full max-h-[70vh] rounded-lg shadow-2xl shadow-black/50"></canvas>
+            <canvas id="shadow-canvas" class="max-w-full max-h-[70vh] rounded-lg shadow-2xl shadow-black/50 hidden"></canvas>
+            <canvas id="mask-canvas" class="max-w-full max-h-[70vh] rounded-lg shadow-2xl shadow-black/50 hidden bg-white"></canvas>
+          </div>
+          
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const state = {
+      images: { foreground: null, background: null, depth: null },
+      settings: {
+        angle: 135,
+        elevation: 45,
+        length: 150,
+        darkness: 85,
+        softness: 70,
+        scale: 60,
+        posX: 50,
+        posY: 70
+      },
+      activeTab: 'composite'
+    };
+
+    const mainCanvas = document.getElementById('main-canvas');
+    const shadowCanvas = document.getElementById('shadow-canvas');
+    const maskCanvas = document.getElementById('mask-canvas');
+    const mainCtx = mainCanvas.getContext('2d');
+    const shadowCtx = shadowCanvas.getContext('2d');
+    const maskCtx = maskCanvas.getContext('2d');
+
+    function handleUpload(type, input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          state.images[type] = img;
+          
+          document.getElementById(`${type.slice(0,2)}-preview`).classList.remove('hidden');
+          document.getElementById(`${type.slice(0,2)}-placeholder`).classList.add('hidden');
+          document.getElementById(`${type.slice(0,2)}-img`).src = e.target.result;
+          
+          if (state.images.foreground && state.images.background) {
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('canvas-container').classList.remove('hidden');
+            composite();
+          }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateSetting(name, value) {
+      state.settings[name] = parseInt(value);
+      
+      const units = { angle: '°', elevation: '°', length: 'px', darkness: '%', softness: '%', scale: '%', posX: '%', posY: '%' };
+      document.getElementById(`${name}-value`).textContent = value + units[name];
+      
+      if (name === 'angle') {
+        document.getElementById('light-dot').style.transform = 
+          `translate(-50%, -50%) rotate(${-value}deg) translateX(36px)`;
+      }
+      
+      if (state.images.foreground && state.images.background) {
+        composite();
+      }
+    }
+
+    function extractForeground(img) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      
+      const sampleSize = 20;
+      let bgR = 0, bgG = 0, bgB = 0, samples = 0;
+      
+      for (let y = 0; y < sampleSize; y++) {
+        for (let x = 0; x < sampleSize; x++) {
+          const corners = [
+            (y * canvas.width + x) * 4,
+            (y * canvas.width + (canvas.width - 1 - x)) * 4,
+            ((canvas.height - 1 - y) * canvas.width + x) * 4,
+            ((canvas.height - 1 - y) * canvas.width + (canvas.width - 1 - x)) * 4,
+          ];
+          corners.forEach(i => {
+            bgR += data[i];
+            bgG += data[i + 1];
+            bgB += data[i + 2];
+            samples++;
+          });
+        }
+      }
+      
+      bgR /= samples;
+      bgG /= samples;
+      bgB /= samples;
+      
+      const threshold = 60;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        
+        const dist = Math.sqrt(
+          Math.pow(r - bgR, 2) +
+          Math.pow(g - bgG, 2) +
+          Math.pow(b - bgB, 2)
+        );
+        
+        if (dist < threshold) {
+          data[i + 3] = 0;
+        }
+      }
+      
+      ctx.putImageData(imageData, 0, 0);
+      return canvas;
+    }
+
+    function generateShadow(maskCanvas, settings) {
+      const { angle, elevation, length, darkness, softness } = settings;
+      
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = maskCanvas.width * 2;
+      canvas.height = maskCanvas.height * 2;
+      
+      const shadowAngleRad = (angle + 180) * Math.PI / 180;
+      const elevationFactor = Math.cos(elevation * Math.PI / 180);
+      const actualLength = length * elevationFactor;
+      
+      const dx = Math.cos(shadowAngleRad);
+      const dy = -Math.sin(shadowAngleRad);
+      
+      const offsetX = maskCanvas.width / 2;
+      const offsetY = maskCanvas.height / 2;
+      
+      const layers = Math.max(1, Math.floor(actualLength / 4));
+      
+      for (let i = 0; i < layers; i++) {
+        const t = i / Math.max(1, layers - 1);
+        const layerOffsetX = dx * actualLength * t;
+        const layerOffsetY = dy * actualLength * t;
+        
+        const blur = Math.floor(2 + (softness / 100) * 40 * t);
+        const opacity = (1 - t * 0.8) * (darkness / 100);
+        
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.filter = `blur(${blur}px)`;
+        ctx.drawImage(maskCanvas, offsetX + layerOffsetX, offsetY + layerOffsetY);
+        ctx.restore();
+      }
+      
+      ctx.save();
+      ctx.globalAlpha = darkness / 100;
+      ctx.filter = 'blur(3px)';
+      ctx.drawImage(maskCanvas, offsetX + dx * 5, offsetY + dy * 5);
+      ctx.restore();
+      
+      return canvas;
+    }
+
+    function composite() {
+      const { foreground, background } = state.images;
+      const { scale, posX, posY } = state.settings;
+      
+      if (!foreground || !background) return;
+      
+      mainCanvas.width = background.width;
+      mainCanvas.height = background.height;
+      shadowCanvas.width = background.width;
+      shadowCanvas.height = background.height;
+      
+      const fgExtracted = extractForeground(foreground);
+      
+      const fgScale = scale / 100;
+      const fgWidth = foreground.width * fgScale;
+      const fgHeight = foreground.height * fgScale;
+      const fgX = (background.width * posX / 100) - fgWidth / 2;
+      const fgY = (background.height * posY / 100) - fgHeight / 2;
+      
+      maskCanvas.width = fgWidth;
+      maskCanvas.height = fgHeight;
+      maskCtx.clearRect(0, 0, fgWidth, fgHeight);
+      maskCtx.drawImage(fgExtracted, 0, 0, fgWidth, fgHeight);
+      
+      const maskData = maskCtx.getImageData(0, 0, fgWidth, fgHeight);
+      for (let i = 0; i < maskData.data.length; i += 4) {
+        const alpha = maskData.data[i + 3];
+        maskData.data[i] = 0;
+        maskData.data[i + 1] = 0;
+        maskData.data[i + 2] = 0;
+        maskData.data[i + 3] = alpha;
+      }
+      maskCtx.putImageData(maskData, 0, 0);
+      
+      const shadowResult = generateShadow(maskCanvas, state.settings);
+      
+      mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+      mainCtx.drawImage(background, 0, 0);
+      
+      mainCtx.save();
+      mainCtx.globalCompositeOperation = 'multiply';
+      mainCtx.drawImage(shadowResult, fgX - fgWidth/2, fgY - fgHeight/2);
+      mainCtx.restore();
+      
+      mainCtx.drawImage(fgExtracted, fgX, fgY, fgWidth, fgHeight);
+      
+      shadowCtx.fillStyle = 'white';
+      shadowCtx.fillRect(0, 0, shadowCanvas.width, shadowCanvas.height);
+      shadowCtx.drawImage(shadowResult, fgX - fgWidth/2, fgY - fgHeight/2);
+    }
+
+    function setTab(tab) {
+      state.activeTab = tab;
+      
+      ['composite', 'shadow', 'mask'].forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        if (t === tab) {
+          btn.classList.add('bg-amber-500/20', 'text-amber-500');
+          btn.classList.remove('text-zinc-400', 'hover:text-zinc-200', 'hover:bg-zinc-800');
+        } else {
+          btn.classList.remove('bg-amber-500/20', 'text-amber-500');
+          btn.classList.add('text-zinc-400', 'hover:text-zinc-200', 'hover:bg-zinc-800');
+        }
+      });
+      
+      mainCanvas.classList.toggle('hidden', tab !== 'composite');
+      shadowCanvas.classList.toggle('hidden', tab !== 'shadow');
+      maskCanvas.classList.toggle('hidden', tab !== 'mask');
+    }
+
+    function downloadCurrent() {
+      const canvas = state.activeTab === 'composite' ? mainCanvas :
+                     state.activeTab === 'shadow' ? shadowCanvas : maskCanvas;
+      
+      const link = document.createElement('a');
+      link.download = `${state.activeTab}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  </script>
+</body>
+</html>
